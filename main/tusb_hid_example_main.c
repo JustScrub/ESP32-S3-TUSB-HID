@@ -132,17 +132,61 @@ static void led_strip_blink()
 
 /********* Application ***************/
 
+// Global state (accessible via API functions below)
+static bool send_hid_data = false;
+static char current_key = 'f'; // Default key
+
+// Convert lowercase letter to HID keycode
+static uint8_t char_to_hid_keycode(char c)
+{
+    if (c >= 'a' && c <= 'z') {
+        return HID_KEY_A + (c - 'a');
+    }
+    return HID_KEY_F; // fallback to 'f'
+}
+
+/********* Extern API for BLE control ***************/
+
+// Set transmit enabled/disabled
+void hid_set_transmit_enabled(bool enabled)
+{
+    send_hid_data = enabled;
+}
+
+// Get current transmit state
+bool hid_get_transmit_enabled(void)
+{
+    return send_hid_data;
+}
+
+// Set the key to transmit (only lowercase a-z supported)
+void hid_set_key(char key)
+{
+    if (key >= 'a' && key <= 'z') {
+        current_key = key;
+        ESP_LOGI(TAG, "Key changed to '%c'", key);
+    } else {
+        ESP_LOGW(TAG, "Invalid key '%c' rejected (only a-z supported)", key);
+    }
+}
+
+// Get the current key
+char hid_get_key(void)
+{
+    return current_key;
+}
+
+/********* HID transmission ***************/
+
 static void send_f_key(void)
 {
-    // Keyboard output: Send key 'a/A' pressed and released
-    ESP_LOGI(TAG, "Sending Keyboard report");
-    uint8_t keycode[6] = {HID_KEY_F}; // Keycode array, can hold up to 6 keycodes
+    // Keyboard output: Send current key pressed and released
+    ESP_LOGI(TAG, "Sending Keyboard report: '%c'", current_key);
+    uint8_t keycode[6] = {char_to_hid_keycode(current_key)};
     tud_hid_keyboard_report(HID_ITF_PROTOCOL_KEYBOARD, 0, keycode);
     vTaskDelay(pdMS_TO_TICKS(50));
     tud_hid_keyboard_report(HID_ITF_PROTOCOL_KEYBOARD, 0, NULL);
 }
-
-static bool send_hid_data = false;
 
 // button interrupt handler - switches send_hid_data flag
 static void IRAM_ATTR button_isr_handler(void* arg)
@@ -184,6 +228,10 @@ void app_main(void)
 
     ESP_ERROR_CHECK(tinyusb_driver_install(&tusb_cfg));
     ESP_LOGI(TAG, "USB initialization DONE");
+
+    // Initialize NimBLE (defined in nimble.c)
+    extern void nimble_init(void);
+    nimble_init();
 
     while (1) {
         if (tud_mounted()) {
