@@ -22,6 +22,10 @@
 
 static const char *TAG = "nimble";
 
+#define BLE_DEV_NAME "ESP32-HID-Kbd"
+#define BLE_CHA_TOGGLE_DESC "Toggle Transmit"
+#define BLE_CHA_KEY_DESC "HID Key (a-z)"
+
 // Extern API functions from main.c
 extern void hid_set_transmit_enabled(bool enabled);
 extern bool hid_get_transmit_enabled(void);
@@ -125,7 +129,7 @@ static int gatt_svr_chr_access_key(uint16_t conn_handle, uint16_t attr_handle,
 static int gatt_svr_dsc_access_toggle(uint16_t conn_handle, uint16_t attr_handle,
                                        struct ble_gatt_access_ctxt *ctxt, void *arg)
 {
-    const char *desc = "Toggle Transmit";
+    const char *desc = BLE_CHA_TOGGLE_DESC;
     int rc = os_mbuf_append(ctxt->om, desc, strlen(desc));
     return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
 }
@@ -133,7 +137,7 @@ static int gatt_svr_dsc_access_toggle(uint16_t conn_handle, uint16_t attr_handle
 static int gatt_svr_dsc_access_key(uint16_t conn_handle, uint16_t attr_handle,
                                     struct ble_gatt_access_ctxt *ctxt, void *arg)
 {
-    const char *desc = "HID Key (a-z)";
+    const char *desc = BLE_CHA_KEY_DESC;
     int rc = os_mbuf_append(ctxt->om, desc, strlen(desc));
     return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
 }
@@ -339,7 +343,7 @@ void nimble_init(void)
     ble_hs_cfg.store_status_cb = NULL;
 
     /* Set device name */
-    rc = ble_svc_gap_device_name_set("ESP32-HID-Kbd");
+    rc = ble_svc_gap_device_name_set(BLE_DEV_NAME);
     assert(rc == 0);
 
     /* Initialize GATT services */
@@ -357,7 +361,7 @@ void nimble_init(void)
     nimble_port_freertos_init(nimble_host_task);
 
     ESP_LOGI(TAG, "NimBLE initialized");
-    ESP_LOGI(TAG, "Device name: ESP32-HID-Kbd");
+    ESP_LOGI(TAG, "Device name: %s", BLE_DEV_NAME);
     ESP_LOGI(TAG, "Service UUID: 12345678-1234-1234-1234-123456789abc");
     ESP_LOGI(TAG, "  Toggle characteristic: ...89abd (READ to toggle)");
     ESP_LOGI(TAG, "  Key characteristic: ...89abe (READ/WRITE for a-z key)");
